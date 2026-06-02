@@ -1,0 +1,43 @@
+# ---- Rahasia / kredensial (JANGAN commit) ----
+.env
+.env.*
+!.env.example
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Cache data pasar (besar, di-generate ulang dari provider) ----
+data/*.csv
+
+# ---- Artefak model terlatih ----
+*.joblib
+*.pkl
+
+# ---- Output / log yang di-generate runtime ----
+signals_log.csv
+signals_evaluated.csv
+oos_trades*.csv
+realistic_trades.csv
+
+# ---- Tooling / editor / OS ----
+.vscode/
+.idea/
+.DS_Store
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

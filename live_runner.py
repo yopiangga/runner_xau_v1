@@ -12,7 +12,7 @@ Catatan:
 - Anti-spam: 1 notifikasi per candle.
 """
 import sys, time, subprocess, platform, warnings, datetime as dt
-import urllib.request, urllib.parse
+import ssl, urllib.request, urllib.parse, urllib.error
 import numpy as np
 import pandas as pd
 warnings.filterwarnings("ignore")
@@ -36,8 +36,18 @@ LOG_FILE = "signals_log.csv"
 POPUP = True
 POPUP_TIMEOUT = 20          # popup auto-tutup setelah 20 detik
 
+def _ssl_context():
+    """Konteks SSL dengan CA bundle certifi bila ada (atasi 'certificate verify
+    failed' yang umum di Windows karena root CA Python tidak terpasang)."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
 def send_telegram(text):
-    """Kirim pesan ke Telegram (stdlib, tanpa dependency). Diam jika belum dikonfigurasi."""
+    """Kirim pesan ke Telegram (stdlib, tanpa dependency wajib). Diam jika belum dikonfigurasi."""
     token = config.TELEGRAM_BOT_TOKEN
     chat_id = config.TELEGRAM_CHAT_ID
     if not token or not chat_id:
@@ -45,8 +55,24 @@ def send_telegram(text):
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
     try:
-        with urllib.request.urlopen(url, data=data, timeout=10) as r:
+        with urllib.request.urlopen(url, data=data, timeout=10, context=_ssl_context()) as r:
             r.read()
+        return
+    except urllib.error.URLError as e:
+        # Fallback Windows: root CA tak tersedia -> kirim tanpa verifikasi sertifikat.
+        if isinstance(getattr(e, "reason", None), ssl.SSLError):
+            print("  [warn] verifikasi SSL gagal; kirim tanpa verifikasi "
+                  "(disarankan `pip install certifi` untuk perbaikan permanen).")
+            try:
+                with urllib.request.urlopen(
+                    url, data=data, timeout=10, context=ssl._create_unverified_context()
+                ) as r:
+                    r.read()
+                return
+            except Exception as e2:
+                print(f"  [warn] kirim telegram gagal: {e2}")
+                return
+        print(f"  [warn] kirim telegram gagal: {e}")
     except Exception as e:
         print(f"  [warn] kirim telegram gagal: {e}")
 
@@ -181,6 +207,13 @@ def main():
     model = train_model()
     last_train = time.time()
     state = {}
+
+    send_telegram(
+        f"🚀 Bot {config.SYMBOL} (XAUUSD) {config.TIMEFRAME_LABEL} START\n"
+        f"Sumber data: {config.DATA_PROVIDER} | threshold {config.PROB_THRESHOLD:.0%}\n"
+        f"Mode: {'sekali (--once)' if once else 'live tiap candle'} | "
+        f"waktu {dt.datetime.now():%Y-%m-%d %H:%M:%S}"
+    )
 
     if once:
         run_cycle(model, state)

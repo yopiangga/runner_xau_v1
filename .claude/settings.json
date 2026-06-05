@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import pip; print\\('pip ok'\\)\")",
+      "Bash(/opt/homebrew/bin/python3 -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/python -m pip install -q --upgrade pip)",
+      "Bash(.venv/bin/python -m pip install -q pandas numpy scikit-learn joblib)",
+      "Bash(.venv/bin/python -c \"import pandas, numpy, sklearn; print\\('versions', pandas.__version__, numpy.__version__, sklearn.__version__\\)\")",
+      "Bash(python3 -m py_compile model.py config.py)",
+      "Bash(.venv/bin/python compare_algos.py)",
+      "Bash(.venv/bin/python -m pip install -q requests)",
+      "Bash(MODEL_ALGO=extratrees .venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python analyze_best_time.py)",
+      "Bash(.venv/bin/python analyze_best_time.py --threshold 0.70)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('mt5_trader.py'\\).read\\(\\)\\); ast.parse\\(open\\('live_runner.py'\\).read\\(\\)\\); ast.parse\\(open\\('config.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(python3 -c \"import config; print\\('AUTO_TRADE=', config.AUTO_TRADE, 'LOT=', config.TRADE_LOT, 'MAX=', config.MAX_OPEN_POSITIONS, 'MAGIC=', config.TRADE_MAGIC\\)\")",
+      "Bash(python3 -c \"import mt5_trader; print\\('is_available\\(\\)=', mt5_trader.is_available\\(\\), '| count=', mt5_trader.count_open_positions\\(\\)\\)\")"
+    ]
+  }
+}

@@ -4,6 +4,8 @@ kirim NOTIFIKASI (macOS) saat ada sinyal BUY/SELL.
   python3 live_runner.py            # jalan terus, cek tiap candle 5m
   python3 live_runner.py --once     # cek sekali lalu keluar (untuk uji)
   python3 live_runner.py --interval 60   # paksa cek tiap 60 detik
+  python  live_runner.py --trade    # + AUTO BUKA POSISI via MT5 (Windows)
+  python  live_runner.py --no-trade # paksa MATIKAN auto-trade (override .env)
 
 Catatan:
 - Model dilatih SEKALI saat start dari data historis (cache/AllTick),
@@ -22,6 +24,7 @@ from data_provider import update_cache, fetch_recent
 from features import build_features, FEATURE_COLS
 from labeling import make_labels
 from model import fit_full_model
+import mt5_trader
 
 FEATS = FEATURE_COLS + ["side"]
 RETRAIN_HOURS = config.RETRAIN_HOURS   # latih ulang model tiap N jam
@@ -159,7 +162,29 @@ def log_signal(candle_time, close, side, p, tp, sl, action):
     row.to_csv(LOG_FILE, mode="a", header=not os.path.exists(LOG_FILE), index=False)
 
 
-def run_cycle(model, state):
+def auto_open(side, p, tp, sl, last):
+    """Buka posisi otomatis via MT5 sesuai sinyal (hanya Windows + AUTO_TRADE)."""
+    open_count = mt5_trader.count_open_positions()
+    if open_count >= config.MAX_OPEN_POSITIONS:
+        print(f"   [trade] lewati: sudah {open_count} posisi terbuka "
+              f"(maks {config.MAX_OPEN_POSITIONS}).")
+        return
+    result, err = mt5_trader.open_position(side, sl, tp)
+    if err:
+        print(f"   [trade] GAGAL: {err}")
+        send_telegram(f"⚠️ Auto-trade GAGAL {config.SYMBOL} {side}: {err}")
+        return
+    vol = getattr(result, "volume", config.TRADE_LOT)
+    px = getattr(result, "price", last["close"])
+    ticket = getattr(result, "order", "?")
+    print(f"   [trade] ✅ OPEN {side} {vol} lot @ {px} (ticket {ticket})")
+    send_telegram(
+        f"✅ AUTO OPEN {config.SYMBOL} {side} {vol} lot @ {px:.2f}\n"
+        f"TP {tp:.2f} | SL {sl:.2f} | yakin {p*100:.0f}% | ticket {ticket}"
+    )
+
+
+def run_cycle(model, state, auto_trade=False):
     try:
         last, opts = evaluate_latest(model)
     except Exception as e:
@@ -182,6 +207,8 @@ def run_cycle(model, state):
                f"({sl_d:.2f}) | yakin {p*100:.0f}%")
         notify(f"SINYAL {config.SYMBOL} {side}", msg)
         print(f"[{now}] candle {candle} → 🔔 {msg}")
+        if auto_trade:
+            auto_open(side, p, tp, sl, last)
     else:
         action = "TUNGGU"
         print(f"[{now}] candle {candle} close {last['close']:.2f} → TUNGGU "
@@ -200,9 +227,23 @@ def main():
     if "--interval" in sys.argv:
         interval = int(sys.argv[sys.argv.index("--interval") + 1])
 
+    # Auto-trade: default dari .env (AUTO_TRADE), bisa di-override via CLI.
+    auto_trade = config.AUTO_TRADE
+    if "--trade" in sys.argv:
+        auto_trade = True
+    if "--no-trade" in sys.argv:
+        auto_trade = False
+    if auto_trade and not mt5_trader.is_available():
+        print("[warn] auto-trade diminta tapi MT5 tidak tersedia "
+              "(hanya Windows + paket MetaTrader5). Mode NOTIFIKASI saja.")
+        auto_trade = False
+
     print("=" * 60)
     print(f"  LIVE RUNNER {config.SYMBOL} (XAUUSD) {config.TIMEFRAME_LABEL}")
     print(f"  threshold {config.PROB_THRESHOLD:.0%} | notif macOS | log → {LOG_FILE}")
+    if auto_trade:
+        print(f"  🤖 AUTO-TRADE AKTIF | lot {config.TRADE_LOT} | "
+              f"maks {config.MAX_OPEN_POSITIONS} posisi | magic {config.TRADE_MAGIC}")
     print("=" * 60)
     model = train_model()
     last_train = time.time()
@@ -212,11 +253,12 @@ def main():
         f"🚀 Bot {config.SYMBOL} (XAUUSD) {config.TIMEFRAME_LABEL} START\n"
         f"Sumber data: {config.DATA_PROVIDER} | threshold {config.PROB_THRESHOLD:.0%}\n"
         f"Mode: {'sekali (--once)' if once else 'live tiap candle'} | "
+        f"{'🤖 AUTO-TRADE ON' if auto_trade else 'notif saja'} | "
         f"waktu {dt.datetime.now():%Y-%m-%d %H:%M:%S}"
     )
 
     if once:
-        run_cycle(model, state)
+        run_cycle(model, state, auto_trade)
         return
 
     print("Berjalan... (Ctrl+C untuk berhenti)\n")
@@ -226,7 +268,7 @@ def main():
             time.sleep(max(1, wait))
             if time.time() - last_train > RETRAIN_HOURS * 3600:
                 model = train_model(); last_train = time.time()
-            run_cycle(model, state)
+            run_cycle(model, state, auto_trade)
     except KeyboardInterrupt:
         print("\nDihentikan.")
 

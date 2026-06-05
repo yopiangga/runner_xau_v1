@@ -50,6 +50,20 @@ MT5_PATH = ENV.get("MT5_PATH", "")          # opsional: path ke terminal64.exe
 # Cache MT5 terpisah dari AllTick (zona waktu & nama simbol bisa berbeda)
 MT5_CACHE_PATH = f"data/{MT5_SYMBOL}_{TIMEFRAME_LABEL}.csv"
 
+# --- Auto-trading (buka posisi otomatis lewat MT5, KHUSUS Windows) ---
+# AKTIFKAN dengan AUTO_TRADE=1 di .env, atau jalankan: python live_runner.py --trade
+# HATI-HATI: ini mengeksekusi order uang sungguhan. Uji di akun DEMO dulu.
+def _flag(v):
+    return str(v).strip().lower() in ("1", "true", "yes", "on", "y")
+
+AUTO_TRADE = _flag(ENV.get("AUTO_TRADE", "0"))
+TRADE_LOT = float(ENV.get("TRADE_LOT", "0.01"))      # ukuran lot per posisi
+TRADE_MAGIC = int(ENV.get("TRADE_MAGIC", "640064"))  # tanda order bot (magic number)
+TRADE_DEVIATION = int(ENV.get("TRADE_DEVIATION", "20"))  # slippage maks (points)
+MAX_OPEN_POSITIONS = int(ENV.get("MAX_OPEN_POSITIONS", "1"))  # batas posisi bot aktif
+# Mode filling: auto (deteksi dari simbol) | ioc | fok | return
+TRADE_FILLING = ENV.get("TRADE_FILLING", "auto").strip().lower()
+
 # --- Strategi: TP TETAP (kecil utk scalping), SL VARIATIF (mengikuti support) ---
 TP_POINTS = 2.0           # Take Profit tetap = 2.0 USD (≈ 200 pip gold)
 SL_BUFFER_ATR = 0.25      # buffer di bawah support = 0.25 * ATR
@@ -60,6 +74,8 @@ SUPPORT_LOOKBACK = 60     # cari support dalam 60 bar terakhir
 HOLD_HORIZON = 48         # horizon maksimum trade = 48 bar (4 jam)
 
 # --- Model ---
+# Algoritma model produksi/live: "histgb" (HistGradientBoosting) | "extratrees"
+MODEL_ALGO = ENV.get("MODEL_ALGO", "histgb").strip().lower()
 PROB_THRESHOLD = 0.75     # ambil sinyal hanya jika P(menang) >= threshold
                           # 0.78 = hanya sinyal kuat (winrate ~90%+), menguntungkan.
                           # CATATAN: di bawah ~0.70 winrate jatuh < breakeven (~59%)

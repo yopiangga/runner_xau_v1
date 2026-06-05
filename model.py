@@ -6,13 +6,25 @@ sehingga jumlah trade lebih sedikit tapi kualitas (winrate) lebih tinggi.
 """
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, ExtraTreesClassifier
 from sklearn.metrics import roc_auc_score
 import config
 from features import FEATURE_COLS
 
 
-def _new_model():
+def _new_model(algo=None):
+    """Buat estimator baru sesuai algoritma terpilih.
+    algo: "histgb" (default) | "extratrees". Jika None, ikut config.MODEL_ALGO."""
+    algo = (algo or config.MODEL_ALGO).strip().lower()
+    if algo in ("extratrees", "extra_trees", "et"):
+        return ExtraTreesClassifier(
+            n_estimators=400,
+            max_depth=10,
+            min_samples_leaf=30,
+            n_jobs=-1,
+            random_state=config.RANDOM_STATE,
+        )
+    # default: HistGradientBoosting
     return HistGradientBoostingClassifier(
         max_depth=4,
         learning_rate=0.05,

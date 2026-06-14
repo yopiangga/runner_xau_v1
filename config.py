@@ -76,7 +76,7 @@ HOLD_HORIZON = 48         # horizon maksimum trade = 48 bar (4 jam)
 # --- Model ---
 # Algoritma model produksi/live: "histgb" (HistGradientBoosting) | "extratrees"
 MODEL_ALGO = ENV.get("MODEL_ALGO", "histgb").strip().lower()
-PROB_THRESHOLD = 0.75     # ambil sinyal hanya jika P(menang) >= threshold
+PROB_THRESHOLD = 0.80     # ambil sinyal hanya jika P(menang) >= threshold
                           # 0.78 = hanya sinyal kuat (winrate ~90%+), menguntungkan.
                           # CATATAN: di bawah ~0.70 winrate jatuh < breakeven (~59%)
                           # karena RR < 1 (TP $2 < SL rata2 ~$3) -> RUGI. Jangan turun.

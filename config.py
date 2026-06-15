@@ -57,7 +57,7 @@ def _flag(v):
     return str(v).strip().lower() in ("1", "true", "yes", "on", "y")
 
 AUTO_TRADE = _flag(ENV.get("AUTO_TRADE", "0"))
-TRADE_LOT = float(ENV.get("TRADE_LOT", "0.01"))      # ukuran lot per posisi
+TRADE_LOT = float(ENV.get("TRADE_LOT", "0.1"))      # ukuran lot per posisi
 TRADE_MAGIC = int(ENV.get("TRADE_MAGIC", "640064"))  # tanda order bot (magic number)
 TRADE_DEVIATION = int(ENV.get("TRADE_DEVIATION", "20"))  # slippage maks (points)
 MAX_OPEN_POSITIONS = int(ENV.get("MAX_OPEN_POSITIONS", "1"))  # batas posisi bot aktif
